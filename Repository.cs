@@ -1,11 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.Text;
 
-namespace AllegroGraphCSharpClient
+using System.Web.Script.Serialization;
+
+namespace AllegroGraphHTTPClient
 {
     /// <summary>
     /// Class to handle interacting with the repository
@@ -16,10 +18,22 @@ namespace AllegroGraphCSharpClient
     {
         private string _url = string.Empty;
         private object _environment = null;
+        private string _userName = string.Empty;
+        private string _password = string.Empty;
+
+        private JavaScriptSerializer _serializer = new JavaScriptSerializer();
+
         public Repository()
         {
-        }
 
+        } 
+
+        public Repository(string url, string UserName, string Password)
+        {
+            this._url = url;
+            this._userName = UserName;
+            this._password = Password; 
+        }
         public Repository(string url)
         {
             this._url = url; 
@@ -27,9 +41,11 @@ namespace AllegroGraphCSharpClient
 
         #region IRepository Members
 
-        public Repository createRepository(string name)
+        public Repository createRepository(string name,string UserName, string Password)
         {
             this._url = name;
+            this._userName = UserName;
+            this._password = Password; 
             return this;
 
         }
@@ -39,10 +55,10 @@ namespace AllegroGraphCSharpClient
             return this._url;
         }
 
-        public List<Results> jsonRequest(string method, string url)
+        public List<Results> jsonRequest(string method, string url, string UserName, string Password)
         {
             Request rq = new Request();
-            return rq.JSONRequest(method, url, null, null);
+            return rq.JSONRequest(method, url, null, null, UserName, Password);
         }
 
         /// <summary>
@@ -53,11 +69,12 @@ namespace AllegroGraphCSharpClient
         /// <param name="options">Options to be passed in the HTTP Request</param>
         /// <param name="contentType">ContentType parameter</param>
         /// <returns></returns>
-        public List<Results> StandardRequest(string method, string url, List<NameValuePairs> options, string contentType)
+        public List<Results> StandardRequest(string method, string url, List<NameValuePairs> options, string contentType, string UserName, string Password, string body = null)
         {
             Request rq = new Request();
-            return rq.StandardRequest(method, url, options, contentType);
-        }
+            return rq.StandardRequest(method, url, options , contentType, UserName, Password, body);
+        }        
+
 
         /// <summary>
         /// Function to return the size of the statement pairs
@@ -65,7 +82,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="Context"></param>
         /// <param name="url"></param>
         /// <returns></returns>
-        public long getSize(string Context, string url)
+        public long getSize(string Context, string url, string UserName, string Password)
         {
             try
             {
@@ -78,12 +95,12 @@ namespace AllegroGraphCSharpClient
                 
                 if(url == string.Empty) {
                   List<Results> results = new List<Results>();
-                  results = this.StandardRequest("GET", this._url+"/size",np,null);
+                  results = this.StandardRequest("GET", this._url+"/size",np,null,UserName,Password);
                   return (long)results[0].Result;
                 }
                 else{
                     List<Results> results = new List<Results>();
-                    results = this.StandardRequest("GET", url + "/size",np,null);
+                    results = this.StandardRequest("GET", url + "/size",np,null, UserName, Password );
                     return (long)results[0].Result;
                 }
             }
@@ -101,9 +118,9 @@ namespace AllegroGraphCSharpClient
         /// <param name="context"></param>
         /// <param name="url"></param>
         /// <returns></returns>
-        public long ReturnNumberOfTriples(string context, string url)
+        public long ReturnNumberOfTriples(string context, string url, string UserName, string Password)
         {
-            return getSize(context, url); 
+            return getSize(context, url,UserName, Password); 
         }
 
         /// <summary>
@@ -111,7 +128,7 @@ namespace AllegroGraphCSharpClient
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public List<string> listContexts(string url)
+        public List<string> listContexts(string url, string UserName, string Password)
         {
             try
             {
@@ -119,7 +136,7 @@ namespace AllegroGraphCSharpClient
                 {
                     List<Results> results = new List<Results>();
                     List<string> contexts = new List<string>();
-                    results = jsonRequest("GET", this._url + "/contexts");
+                    results = jsonRequest("GET", this._url + "/contexts",UserName, Password);
                     foreach (Results rs in results)
                     {
                         contexts.Add(rs.Result.ToString());
@@ -130,7 +147,7 @@ namespace AllegroGraphCSharpClient
                 {
                     List<Results> results = new List<Results>();
                     List<string> contexts = new List<string>();
-                    results = jsonRequest("GET", url + "/contexts");
+                    results = jsonRequest("GET", url + "/contexts", UserName, Password);
                     foreach (Results rs in results)
                     {
                         contexts.Add(rs.Result.ToString());
@@ -145,25 +162,41 @@ namespace AllegroGraphCSharpClient
             }
         }
 
+
+        ///  <summary>
+        ///Returns free text search  
+        /// </summary>
+        public List<Results> FreeTextSearch( string url, string SearchTerm, string UserName, string Password)
+        {
+
+            List<NameValuePairs> options = null;
+            string contentType = ""; 
+            Request rq = new Request();
+            string finalUrl = url + "/freetext?" + "expression=\'*" + SearchTerm + "\' ";
+            return rq.StandardRequest("GET", finalUrl, options, contentType, UserName, Password);
+
+            
+        }
+
         /// <summary>
         /// Returns if the repository is writable
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public bool isWritable(string url)
+        public bool isWritable(string url, string UserName, string Password)
         {
             try
             {
                 if (url == string.Empty)
                 {
                     List<Results> results = new List<Results>();
-                    results = jsonRequest("GET", this._url + "/writeable");
+                    results = jsonRequest("GET", this._url + "/writeable", UserName, Password);
                     return Convert.ToBoolean(results[0].Result);
                 }
                 else
                 {
                     List<Results> results = new List<Results>();
-                    results = jsonRequest("GET", url + "/writeable");
+                    results = jsonRequest("GET", url + "/writeable", UserName, Password);
                     return Convert.ToBoolean(results[0].Result);
                 }
             }
@@ -185,15 +218,15 @@ namespace AllegroGraphCSharpClient
         /// <param name="namedContexts"></param>
         /// <param name="bindings"></param>
         /// <returns></returns>
-        public List<Results> evalSparqlQuery(string url, string query, bool infer, List<NameValuePairs> contexts, List<NameValuePairs> namedContexts, List<NameValuePairs> bindings, string AdditonalPrefixes)
+        public IList<Results> evalSparqlQuery(string query, string returnFormat, bool infer = false, List<NameValuePairs> contexts = null, List<NameValuePairs> namedContexts = null, List<NameValuePairs> bindings = null, string AdditonalPrefixes = "")
         {
-            
-            query = System.Web.HttpUtility.UrlEncode(@"PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>  PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>  PREFIX wikipedia:<http://wikipedia.org/>  PREFIX foaf:<http://xmlns.com/foaf/0.1/>   PREFIX xsd:<http://www.w3.org/2001/XMLSchema#> PREFIX fn:<http://www.w3.org/2005/xpath-functions#>  PREFIX dc:<http://purl.org/dc/elements/1.1/>  PREFIX bio:<http://purl.org/vocab/bio/0.1/>  ")+ System.Web.HttpUtility.UrlEncode(AdditonalPrefixes) + System.Web.HttpUtility.UrlEncode(query);
+
+            string urlquery = System.Web.HttpUtility.UrlEncode(@"PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>  PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>  PREFIX wikipedia:<http://wikipedia.org/>  PREFIX foaf:<http://xmlns.com/foaf/0.1/>   PREFIX xsd:<http://www.w3.org/2001/XMLSchema#> PREFIX fn:<http://www.w3.org/2005/xpath-functions#>  PREFIX dc:<http://purl.org/dc/elements/1.1/>  PREFIX bio:<http://purl.org/vocab/bio/0.1/> PREFIX bw:<http://www.bundlewire.com/> ") + System.Web.HttpUtility.UrlEncode(AdditonalPrefixes) + System.Web.HttpUtility.UrlEncode(query);
             List<Results> results = new List<Results>();
             List<NameValuePairs> options = new List<NameValuePairs>(); 
             try
             {
-                options.Add(new NameValuePairs("query",query));
+                options.Add(new NameValuePairs("query", urlquery));
                 if (this._environment != null)
                 {
                     options.Add(new NameValuePairs("enviornment", this._environment));
@@ -217,16 +250,19 @@ namespace AllegroGraphCSharpClient
                         options.Add(np);
                     }
                 }
-                if (url == string.Empty)
-                {
-                    return StandardRequest("GET", this._url, options, null);
-                    
+                if (query.StartsWith("SELECT", StringComparison.CurrentCultureIgnoreCase)) // TODO: this is not the best way to do this...
+                {   
+                    return StandardRequest("GET", this._url, options, returnFormat, _userName, _password);
                 }
                 else
                 {
-                    return StandardRequest("GET", url, options, null);
-                }
-                
+                    return StandardRequest("POST",
+                            this._url,
+                            options,
+                            "application/json",
+                            _userName,
+                            _password, query);
+                }     
             }
             catch (Exception ex)
             {
@@ -243,7 +279,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="query"></param>
         /// <param name="infer"></param>
         /// <returns></returns>
-        public List<Results> evalPrologQuery(string url, string query, bool infer, string AdditionalPrefixes)
+        public List<Results> evalPrologQuery(string url, string query, string returnFormat, bool infer, string AdditionalPrefixes, string UserName, string Password)
         {
             List<Results> results = new List<Results>();
             List<NameValuePairs> options = new List<NameValuePairs>();
@@ -256,12 +292,12 @@ namespace AllegroGraphCSharpClient
                     options.Add(new NameValuePairs("infer", infer)); 
                 if (url == string.Empty)
                 {
-                    return StandardRequest("POST", this._url, options, null);
+                    return StandardRequest("POST", this._url, options, null,UserName, Password);
 
                 }
                 else
                 {
-                    return StandardRequest("POST", url, options, null);
+                    return StandardRequest("POST", url, options, null, UserName, Password);
                 }
 
             }
@@ -283,7 +319,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="contexts"></param>
         /// <param name="infer"></param>
         /// <returns></returns>
-        public List<Results> getStatements(string url, string subj, string pred, string obj, List<NameValuePairs> contexts, bool infer)
+        public List<Results> getStatements(string url, string subj, string pred, string obj, List<NameValuePairs> contexts, bool infer, string UserName, string Password)
         {
             List<Results> results = new List<Results>(); 
             try
@@ -296,11 +332,11 @@ namespace AllegroGraphCSharpClient
                 options.Add(new NameValuePairs("infer",infer));
                 if (url == string.Empty)
                 {
-                    results = StandardRequest("GET", this._url + "/statements", options, null); 
+                    results = StandardRequest("GET", this._url + "/statements", options, null,UserName, Password); 
                 }
                 else
                 {
-                    results = StandardRequest("GET", url + "/statements", options, null);
+                    results = StandardRequest("GET", url + "/statements", options, null, UserName, Password);
                 }
             }
             catch (Exception ex)
@@ -321,11 +357,12 @@ namespace AllegroGraphCSharpClient
         /// <param name="contexts"></param>
         /// <param name="ContentType"></param>
         /// <returns></returns>
-        public bool addStatement(string url, string subj, string pred, string obj, List<NameValuePairs> contexts, string ContentType)
+        public bool addStatement(string subj, string pred, string obj)
         {
             try
             {
-                StandardRequest("POST", url, contexts, ContentType); 
+                string body = "[[\"" + subj + "\",\"" + pred + "\",\"" + obj + "\"]]";
+                StandardRequest("POST", _url+"/statments", null, "application/json", _userName, _password, body); 
                 return true;
             }
             catch (Exception ex)
@@ -344,7 +381,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="obj"></param>
         /// <param name="contexts"></param>
         /// <returns></returns>
-        public bool deleteMatchingStatments(string url, string subj, string pred, string obj, List<NameValuePairs> contexts)
+        public bool deleteMatchingStatments(string url, string subj, string pred, string obj, List<NameValuePairs> contexts, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -355,9 +392,17 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="quads"></param>
         /// <returns></returns>
-        public bool addStatements(string url, List<Quads> quads)
+        public bool addStatements(IList<Quads> quads)
         {
-            throw new NotImplementedException();
+            string[] statments = quads.Select( q => ("["+"\""+q.Subject + "\", \""+q.Predicate+"\", \""+q.Object + "\" ]")).ToArray();
+            string body = "[" + string.Join(",", statments) +"]";
+            StandardRequest("POST",
+                        _url + "/statements", 
+                        null, 
+                        "application/json", 
+                        _userName, 
+                        _password, body);
+            return true;
         }
 
 
@@ -381,7 +426,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="baseURI"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public bool loadData(string url, string data, string format, string baseURI, string context)
+        public bool loadData(string url, string data, string format, string baseURI, string context, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -397,7 +442,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="context"></param>
         /// <param name="serverSide"></param>
         /// <returns></returns>
-        public bool loadFile(string url, string fileURL, string format, string baseURI, string context, bool serverSide)
+        public bool loadFile(string url, string fileURL, string format, string baseURI, string context, bool serverSide, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -408,7 +453,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="quantity"></param>
         /// <returns></returns>
-        public List<string> getBlankNodes(string url, int quantity)
+        public List<string> getBlankNodes(string url, int quantity, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -419,9 +464,19 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="quads"></param>
         /// <returns></returns>
-        public bool deleteStatements(string url, List<Quads> quads)
+        public bool deleteStatements(IList<Quads> quads)
         {
-            throw new NotImplementedException();
+            string[] statments = quads.Select(q => ("[" + "\"" + q.Subject + "\", \"" + q.Predicate + "\", \"" + q.Object + "\" ]")).ToArray();
+       //     string[] statments = quads.Select(q => ("[" + "\"" + q.Subject + "\", \"\", \"\"]")).ToArray();
+         //   statments = statments.Take(1).ToArray();
+            string body = "[" + string.Join(",", statments) + "]";
+            IList<Results> res = StandardRequest("POST",
+                        _url + "/statements/delete",
+                        null,
+                        "application/json",
+                        _userName,
+                        _password, body);
+            return true;
         }
 
 
@@ -430,7 +485,7 @@ namespace AllegroGraphCSharpClient
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public List<string> listIndicies(string url)
+        public List<string> listIndicies(string url, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -442,7 +497,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        public bool addIndex(string url, string type)
+        public bool addIndex(string url, string type, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -454,7 +509,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        public bool deleteIndex(string url, string type)
+        public bool deleteIndex(string url, string type, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -466,7 +521,7 @@ namespace AllegroGraphCSharpClient
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public string getIndexCoverage(string url)
+        public string getIndexCoverage(string url, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -479,7 +534,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="all"></param>
         /// <returns></returns>
-        public List<string> indexStatements(string url, bool all)
+        public List<string> indexStatements(string url, bool all, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -493,7 +548,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="infer"></param>
         /// <param name="url"></param>
         /// <returns></returns>
-        public List<Results> evalFreeTextSearch(string pattern, bool infer, string url)
+        public List<Results> evalFreeTextSearch(string pattern, bool infer, string url,string returnFormat, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -505,7 +560,7 @@ namespace AllegroGraphCSharpClient
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public List<Results> listFreeTextPredicates(string url)
+        public List<Results> listFreeTextPredicates(string url, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -517,7 +572,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="predicate"></param>
         /// <returns></returns>
-        public bool registerFreeTextPredicate(string url, string predicate)
+        public bool registerFreeTextPredicate(string url, string predicate, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -529,7 +584,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="name"></param>
         /// <returns></returns>
-        public bool createEnvironment(string url, string name)
+        public bool createEnvironment(string url, string name, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -541,7 +596,7 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="name"></param>
         /// <returns></returns>
-        public bool deleteEnvironment(string url, string name)
+        public bool deleteEnvironment(string url, string name, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
@@ -551,9 +606,10 @@ namespace AllegroGraphCSharpClient
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public List<string> listNamespaces(string url)
+        public IList<string> listNamespaces()
         {
-            throw new NotImplementedException();
+            IList<Results> results = StandardRequest("GET", _url + "/namespaces", null, "application/json", _userName, _password);
+            return results.Select(r => r.Result).Cast<string>().ToList<string>();
         }
 
 
@@ -564,9 +620,10 @@ namespace AllegroGraphCSharpClient
         /// <param name="prefix"></param>
         /// <param name="nameSpace"></param>
         /// <returns></returns>
-        public bool addNamespace(string url, string prefix, string nameSpace)
+        public bool addNamespace(string prefix, string nameSpace)
         {
-            throw new NotImplementedException();
+            IList<Results> results = StandardRequest("PUT", _url + "/namespaces/" + prefix, null, "text/plain", _userName, _password, nameSpace);
+            return true;
         }
 
 
@@ -576,11 +633,33 @@ namespace AllegroGraphCSharpClient
         /// <param name="url"></param>
         /// <param name="prefix"></param>
         /// <returns></returns>
-        public bool deleteNamespace(string url, string prefix)
+        public bool deleteNamespace(string url, string prefix, string UserName, string Password)
         {
             throw new NotImplementedException();
         }
 
         #endregion
+
+
+        public IList<Results> ListAllSubjects()
+        {
+            string sparqlQuery = "select ?subject ?object { ?subject rdfs:label ?object }";
+
+            ContextTypes ct = new ContextTypes(); 
+            IList<Results> results = new List<Results>();
+            try
+            {
+                results = evalSparqlQuery(sparqlQuery, ct.LookupValue("JSON"), false, null, null, null, string.Empty);
+            }
+            catch (Exception ex)
+            {
+
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+                
+
+
+            return results; 
+        }
     }
 }
