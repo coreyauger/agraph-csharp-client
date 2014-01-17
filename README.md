@@ -149,3 +149,6 @@ for these open source projects. We encourage you to take advantage by
 subscribing to the list.  Once you're subscribed, email to 
 <opensource@franz.com> with your questions, comments, suggestions, 
 and patches.
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/coreyauger/agraph-csharp-client/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
